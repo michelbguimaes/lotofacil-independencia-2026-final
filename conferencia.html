@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Painel de Conferência - Bolão</title>
+  <style>
+    :root {
+      --primary: #10b981;
+      --primary-dark: #059669;
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --text: #1e293b;
+      --text-light: #64748b;
+      --border: #e2e8f0;
+      --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+      
+      --hit-15: #ef4444; /* Vermelho forte para 15 */
+      --hit-14: #f59e0b; /* Laranja para 14 */
+      --hit-13: #3b82f6; /* Azul para 13 */
+      --hit-12: #10b981; /* Verde normal para 11/12 */
+      
+      --ball-hit: #10b981;
+      --ball-miss: #e2e8f0;
+      --ball-text-hit: #ffffff;
+      --ball-text-miss: #94a3b8;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, sans-serif; }
+    body { background-color: var(--bg); color: var(--text); padding-bottom: 80px; }
+
+    /* ================= TELA DE LOGIN ================= */
+    #telaLogin {
+      max-width: 400px;
+      margin: 100px auto;
+      padding: 30px;
+      background: var(--card-bg);
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      text-align: center;
+    }
+    #telaLogin h2 { margin-bottom: 20px; color: var(--primary-dark); }
+    .form-group { margin-bottom: 15px; text-align: left; }
+    .form-group label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 0.9em; }
+    .form-group select, .form-group input {
+      width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 1em;
+    }
+    .btn-entrar {
+      width: 100%; padding: 14px; background: var(--primary); color: white; border: none;
+      border-radius: 8px; font-weight: bold; font-size: 1.1em; cursor: pointer; margin-top: 10px;
+    }
+    .btn-entrar:hover { background: var(--primary-dark); }
+    #msgErroLogin { color: #ef4444; margin-top: 15px; display: none; font-weight: bold; }
+
+    /* ================= DASHBOARD ================= */
+    #telaDashboard { display: none; }
+    
+    /* Placar Fixo */
+    .placar-fixo {
+      position: sticky; top: 0; background: var(--primary-dark); color: white;
+      padding: 15px; z-index: 100; box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    }
+    .placar-titulo { text-align: center; font-size: 1.2em; font-weight: bold; margin-bottom: 15px; }
+    .grid-placar {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; max-width: 600px; margin: 0 auto;
+    }
+    .item-placar {
+      background: rgba(255,255,255,0.1); padding: 10px 5px; border-radius: 8px; text-align: center;
+      cursor: pointer; transition: all 0.2s; border: 2px solid transparent;
+    }
+    .item-placar:hover { background: rgba(255,255,255,0.2); transform: scale(1.05); }
+    .item-placar.active { border-color: rgba(255,255,255,0.8); background: rgba(255,255,255,0.3); }
+    .item-placar span { display: block; font-size: 0.8em; opacity: 0.9; }
+    .item-placar strong { display: block; font-size: 1.4em; }
+
+    /* Container de Jogos */
+    .container-jogos { max-width: 600px; margin: 20px auto; padding: 0 15px; }
+    .card-jogo {
+      background: var(--card-bg); border-radius: 12px; padding: 15px; margin-bottom: 15px;
+      box-shadow: var(--shadow); position: relative;
+    }
+    .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 8px;}
+    .card-title { font-weight: bold; font-size: 1.1em; }
+    .card-subtitle { font-size: 0.85em; color: var(--text-light); }
+    
+    .badge-acertos {
+      padding: 4px 10px; border-radius: 20px; font-weight: bold; font-size: 0.85em; color: white; background: var(--text-light);
+    }
+    .badge-15 { background: var(--hit-15); animation: pulse 1.5s infinite; }
+    .badge-14 { background: var(--hit-14); }
+    .badge-13 { background: var(--hit-13); }
+    .badge-12, .badge-11 { background: var(--hit-12); }
+
+    /* Bolinhas de Dezenas */
+    .grid-bolinhas {
+      display: flex; flex-wrap: wrap; gap: 6px; justify-content: center;
+    }
+    .bolinha {
+      width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+      font-weight: bold; font-size: 0.9em; background: var(--ball-miss); color: var(--ball-text-miss);
+    }
+    .bolinha.acerto { background: var(--ball-hit); color: var(--ball-text-hit); }
+
+    /* Paginação */
+    .paginacao {
+      display: flex; justify-content: space-between; align-items: center; max-width: 600px; margin: 20px auto; padding: 0 15px;
+    }
+    .btn-pag {
+      padding: 10px 20px; background: var(--card-bg); border: 1px solid var(--border);
+      border-radius: 8px; font-weight: bold; cursor: pointer; color: var(--text); box-shadow: var(--shadow);
+    }
+    .btn-pag:disabled { opacity: 0.5; cursor: not-allowed; }
+    
+    /* Aviso Sem Resultado */
+    .aviso-resultado { text-align: center; padding: 20px; background: #fff3cd; color: #856404; border-radius: 8px; margin-bottom: 15px; font-weight: bold; }
+
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+      70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+    }
+    
+    #loader { display: none; margin-top: 15px; color: var(--text-light); }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+</head>
+<body>
+
+  <!-- TELA DE LOGIN -->
+  <div id="telaLogin">
+    <h2>🎯 Área de Membros</h2>
+    <p style="margin-bottom: 20px; color: var(--text-light); font-size: 0.9em;">Confira os jogos do seu grupo</p>
+    
+    <div class="form-group">
+      <label>Selecione o Grupo:</label>
+      <select id="selectGrupo">
+        <option value="Grupo A">Grupo A</option>
+        <option value="Grupo B">Grupo B</option>
+        <option value="Grupo C">Grupo C</option>
+        <option value="Grupo D">Grupo D</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Senha do Grupo:</label>
+      <input type="password" id="inputSenha" placeholder="Digite a senha" onkeydown="if(event.key === 'Enter') fazerLogin()">
+    </div>
+    
+    <button class="btn-entrar" onclick="fazerLogin()">Acessar Jogos</button>
+    <div id="loader">⏳ Conectando ao servidor...</div>
+    <div id="msgErroLogin"></div>
+  </div>
+
+  <!-- TELA DASHBOARD -->
+  <div id="telaDashboard">
+    <div class="placar-fixo">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; max-width:600px; margin-left:auto; margin-right:auto;">
+        <div class="placar-titulo" id="tituloDashboard" style="margin-bottom:0;">Grupo A - Conferência</div>
+        <button onclick="sairDashboard()" style="background:rgba(255,255,255,0.2); color:white; border:none; padding:6px 12px; border-radius:5px; font-weight:bold; cursor:pointer;">Sair 🚪</button>
+      </div>
+      <div class="grid-placar">
+        <div class="item-placar" id="filtro-15" style="color: var(--hit-15)" title="Ver jogos com 15 pontos" onclick="filtrarPorAcerto(15)"><span>15 pts</span><strong id="plac15">0</strong></div>
+        <div class="item-placar" id="filtro-14" style="color: #fcd34d" title="Ver jogos com 14 pontos" onclick="filtrarPorAcerto(14)"><span>14 pts</span><strong id="plac14">0</strong></div>
+        <div class="item-placar" id="filtro-13" style="color: #93c5fd" title="Ver jogos com 13 pontos" onclick="filtrarPorAcerto(13)"><span>13 pts</span><strong id="plac13">0</strong></div>
+        <div class="item-placar" id="filtro-1112" title="Ver jogos com 11 ou 12 pontos" onclick="filtrarPorAcerto(1112)"><span>11/12 pts</span><strong id="plac1112">0</strong></div>
+      </div>
+    </div>
+
+    <div class="container-jogos">
+      <div id="areaAvisoResultado"></div>
+      <div id="listaJogos"></div>
+    </div>
+
+    <div class="paginacao">
+      <button class="btn-pag" id="btnAnt" onclick="mudarPagina(-1)">← Anterior</button>
+      <span id="txtPagina" style="font-weight: bold; font-size: 0.9em;">Página 1</span>
+      <button class="btn-pag" id="btnProx" onclick="mudarPagina(1)">Próxima →</button>
+    </div>
+  </div>
+
+  <script>
+    // IMPORTANTE: COLOQUE AQUI O LINK DO SEU GOOGLE APPS SCRIPT
+    const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbyvXIg1RtIecGv56y45nhsH5MHNCZdjE9OMH9nF4ATOCFlUbKoZBPWCcotIJJjkq-Cm/exec"; 
+
+    // Estado Global
+    let jogosGlobais = [];
+    let dezenasSorteadas = [];
+    let paginaAtual = 1;
+    let filtroAcertos = null;
+    const JOGOS_POR_PAGINA = 10;
+
+    window.onload = () => {
+      const sGrp = sessionStorage.getItem('bolaoGrp');
+      const sPwd = sessionStorage.getItem('bolaoPwd');
+      if (sGrp && sPwd) {
+        document.getElementById('selectGrupo').value = sGrp;
+        document.getElementById('inputSenha').value = sPwd;
+        fazerLogin();
+      }
+    };
+
+    function sairDashboard() {
+      sessionStorage.removeItem('bolaoGrp');
+      sessionStorage.removeItem('bolaoPwd');
+      location.reload();
+    }
+
+    function filtrarPorAcerto(tipo) {
+      if (filtroAcertos === tipo) {
+        filtroAcertos = null; // desativa se clicar de novo
+        document.getElementById('filtro-' + tipo).classList.remove('active');
+      } else {
+        filtroAcertos = tipo;
+        document.querySelectorAll('.item-placar').forEach(el => el.classList.remove('active'));
+        document.getElementById('filtro-' + tipo).classList.add('active');
+      }
+      paginaAtual = 1;
+      renderizarPagina();
+    }
+
+    async function fazerLogin() {
+      const grupo = document.getElementById('selectGrupo').value;
+      const senha = document.getElementById('inputSenha').value;
+      const msgErro = document.getElementById('msgErroLogin');
+      const loader = document.getElementById('loader');
+      const btn = document.querySelector('.btn-entrar');
+
+      if(!senha) {
+        msgErro.innerText = "Digite a senha do grupo.";
+        msgErro.style.display = "block";
+        return;
+      }
+
+      msgErro.style.display = "none";
+      loader.style.display = "block";
+      btn.disabled = true;
+
+      try {
+        const payload = {
+          acao: "buscar_jogos",
+          grupo: grupo,
+          senha: senha
+        };
+
+        const req = await fetch(URL_APPS_SCRIPT, {
+          method: "POST",
+          body: JSON.stringify(payload)
+        });
+
+        const res = await (await req).json(); // Trata resposta do GAS
+
+        if (res.status === "erro") {
+          msgErro.innerText = res.msg;
+          msgErro.style.display = "block";
+          loader.style.display = "none";
+          btn.disabled = false;
+          return;
+        }
+
+        // Sucesso!
+        sessionStorage.setItem('bolaoGrp', grupo);
+        sessionStorage.setItem('bolaoPwd', senha);
+        jogosGlobais = res.jogos || [];
+        dezenasSorteadas = res.resultadoOficial || [];
+        
+        prepararDashboard(grupo, res.nomeSorteio, res.concurso);
+
+      } catch (e) {
+        msgErro.innerText = "Erro ao conectar. O link do App Script está correto?";
+        msgErro.style.display = "block";
+        loader.style.display = "none";
+        btn.disabled = false;
+      }
+    }
+
+    function prepararDashboard(nomeGrupo, nomeSorteio, concurso) {
+      document.getElementById('telaLogin').style.display = "none";
+      document.getElementById('telaDashboard').style.display = "block";
+      
+      let tituloFinal = `${nomeGrupo} - Conferência`;
+      if (nomeSorteio) tituloFinal = `${nomeGrupo} | ${nomeSorteio}`;
+      if (concurso) tituloFinal += ` (Conc. ${concurso})`;
+      document.getElementById('tituloDashboard').innerText = tituloFinal;
+      
+      const areaAviso = document.getElementById('areaAvisoResultado');
+      if (dezenasSorteadas.length < 15) {
+        areaAviso.innerHTML = `<div class="aviso-resultado">Aguardando o resultado oficial ser preenchido na planilha. Os jogos abaixo ainda não estão conferidos.</div>`;
+      } else {
+        areaAviso.innerHTML = `<div style="text-align:center; margin-bottom:15px; font-size:0.9em; color:var(--text-light);">Sorteio analisado: <strong>${dezenasSorteadas.join(' - ')}</strong></div>`;
+      }
+
+      // Processar acertos de cada jogo
+      jogosGlobais.forEach(j => {
+        let dezenas = j.dezenas.split(/\s+/).filter(d => d.length > 0);
+        j.arrayDezenas = dezenas;
+        j.acertos = 0;
+        
+        if (dezenasSorteadas.length === 15) {
+          dezenas.forEach(d => {
+            if (dezenasSorteadas.includes(d)) j.acertos++;
+          });
+        }
+      });
+
+      // Ordenar: jogos por ordem de Cota (crescente)
+      jogosGlobais.sort((a, b) => a.cota.localeCompare(b.cota));
+
+      // Calcular Placar
+      let c15=0, c14=0, c13=0, c1112=0;
+      jogosGlobais.forEach(j => {
+        if(j.acertos === 15) c15++;
+        else if(j.acertos === 14) c14++;
+        else if(j.acertos === 13) c13++;
+        else if(j.acertos === 12 || j.acertos === 11) c1112++;
+      });
+
+      document.getElementById('plac15').innerText = c15;
+      document.getElementById('plac14').innerText = c14;
+      document.getElementById('plac13').innerText = c13;
+      document.getElementById('plac1112').innerText = c1112;
+
+      // Dispara confetes se o grupo tiver prêmios altos!
+      if (c15 > 0 || c14 > 0) {
+        setTimeout(lancarConfetes, 600); // pequeno delay para suspense
+      }
+
+      paginaAtual = 1;
+      renderizarPagina();
+    }
+
+    function renderizarPagina() {
+      const lista = document.getElementById('listaJogos');
+      lista.innerHTML = "";
+
+      let jogosFiltrados = jogosGlobais;
+      if (filtroAcertos !== null) {
+        if (filtroAcertos === 1112) {
+          jogosFiltrados = jogosGlobais.filter(j => j.acertos === 11 || j.acertos === 12);
+        } else {
+          jogosFiltrados = jogosGlobais.filter(j => j.acertos === filtroAcertos);
+        }
+      }
+
+      if (jogosFiltrados.length === 0 && dezenasSorteadas.length === 15) {
+         lista.innerHTML = `<div class="aviso-resultado" style="background:var(--border); color:var(--text-light);">Nenhum jogo do grupo obteve esta pontuação.</div>`;
+         document.getElementById('txtPagina').innerText = `Página 1 de 1`;
+         document.getElementById('btnAnt').disabled = true;
+         document.getElementById('btnProx').disabled = true;
+         return;
+      }
+
+      const inicio = (paginaAtual - 1) * JOGOS_POR_PAGINA;
+      const fim = inicio + JOGOS_POR_PAGINA;
+      const jogosPagina = jogosFiltrados.slice(inicio, fim);
+
+      if (filtroAcertos !== null) {
+         lista.innerHTML += `<div style="text-align:center; margin-bottom:15px;"><button onclick="filtrarPorAcerto(${filtroAcertos})" style="padding:8px 20px; background:var(--text-light); color:white; border:none; border-radius:20px; font-weight:bold; cursor:pointer; box-shadow:var(--shadow);">⬅ Voltar</button></div>`;
+      }
+
+      jogosPagina.forEach((jogo, index) => {
+        const divCard = document.createElement('div');
+        divCard.className = 'card-jogo';
+        
+        // Define cor do badge
+        let classeBadge = "";
+        let textoBadge = jogo.acertos + " Acertos";
+        if (jogo.acertos === 0 && dezenasSorteadas.length < 15) textoBadge = "Aguardando";
+        else {
+          if (jogo.acertos === 15) classeBadge = "badge-15";
+          else if (jogo.acertos === 14) classeBadge = "badge-14";
+          else if (jogo.acertos === 13) classeBadge = "badge-13";
+          else if (jogo.acertos === 12 || jogo.acertos === 11) classeBadge = "badge-12";
+        }
+
+        // Bolinhas HTML
+        let htmlBolinhas = "";
+        jogo.arrayDezenas.forEach(d => {
+          let cssAcerto = (dezenasSorteadas.length === 15 && dezenasSorteadas.includes(d)) ? " acerto" : "";
+          htmlBolinhas += `<div class="bolinha${cssAcerto}">${d}</div>`;
+        });
+
+        divCard.innerHTML = `
+          <div class="card-header">
+            <div>
+              <div class="card-title">Jogo #${inicio + index + 1}</div>
+              <div class="card-subtitle">${jogo.cota}</div>
+            </div>
+            <div class="badge-acertos ${classeBadge}">${textoBadge}</div>
+          </div>
+          <div class="grid-bolinhas">
+            ${htmlBolinhas}
+          </div>
+        `;
+        lista.appendChild(divCard);
+      });
+
+      // Atualizar botões
+      const totalPags = Math.ceil(jogosFiltrados.length / JOGOS_POR_PAGINA) || 1;
+      document.getElementById('txtPagina').innerText = `Página ${paginaAtual} de ${totalPags}`;
+      document.getElementById('btnAnt').disabled = paginaAtual === 1;
+      document.getElementById('btnProx').disabled = fim >= jogosFiltrados.length;
+      
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function mudarPagina(dir) {
+      paginaAtual += dir;
+      renderizarPagina();
+    }
+
+    // Efeito Especial de Comemoração 🎊 (Flutuante e Suave)
+    function lancarConfetes() {
+      var duration = 4 * 1000; // 4 segundos de festa
+      var animationEnd = Date.now() + duration;
+      // startVelocity baixo (explosão fraca), gravity muito baixa (cai como pena), ticks altos (dura bastante na tela)
+      var defaults = { startVelocity: 20, spread: 360, ticks: 300, zIndex: 1000, gravity: 0.25 };
+
+      function randomInRange(min, max) {
+        return Math.random() * (max - min) + min;
+      }
+
+      var interval = setInterval(function() {
+        var timeLeft = animationEnd - Date.now();
+        if (timeLeft <= 0) return clearInterval(interval);
+        
+        var particleCount = 40; // Quantidade um pouco menor por estouro
+        // Lança da esquerda
+        confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } }));
+        // Lança da direita
+        confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } }));
+      }, 800); // 1 tiro a cada 800ms
+    }
+  </script>
+</body>
+</html>
